@@ -1,4 +1,3 @@
-use std::env;
 use std::fs::File;
 use std::io::{self, BufRead};
 use std::path::Path;
@@ -70,8 +69,6 @@ fn get_hand_score_p2(rps: &Vec<&str>) -> i64 {
 }
 
 fn main() {
-    let workdir = env::current_dir().unwrap();
-    println!("{}", workdir.into_os_string().into_string().unwrap());
     if let Ok(lines) = read_lines("./input/real") {
         let mut score_part_one: i64 = 0;
         let mut score_part_two: i64 = 0;

@@ -1,4 +1,3 @@
-use std::env;
 use std::fs::File;
 use std::io::{self, BufRead};
 use std::path::Path;
@@ -10,8 +9,6 @@ where P: AsRef<Path>, {
 }
 
 fn main() {
-    let workdir = env::current_dir().unwrap();
-    println!("{}", workdir.into_os_string().into_string().unwrap());
     if let Ok(lines) = read_lines("./input/real") {
         let mut vec_calories_per_elf: Vec<i32> = Vec::new();
         let mut current_elf_calories: i32 = 0;
@@ -35,13 +32,13 @@ fn main() {
         // Part 1: find max value in list
         let mut it = vec_calories_per_elf.into_iter();
         let max_value: i32 = it.next().unwrap();
-        println!("Max calories carried by single elf: {}", max_value);
+        println!("[Part 1] Max calories carried by single elf: {}", max_value);
 
         // Part 2: find top 3 of list
         let mut top_three_calories: i32 = max_value;
         top_three_calories += it.next().unwrap();
         top_three_calories += it.next().unwrap();
-        println!("Calories carried by top 3 elves: {}", top_three_calories);
+        println!("[Part 2] Calories carried by top 3 elves: {}", top_three_calories);
 
     }
 }
