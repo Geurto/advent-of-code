@@ -35,4 +35,27 @@ fn main() {
         }
         println!("[Part 1] Sum of priorities: {}", sum_of_priorities);
     }
+
+    // Part 2
+    if let Ok(lines) = read_lines("./input/real") {
+        let mut sum_of_priorities_p2: u32 = 0;
+        let mut result_vec: Vec<String> = Vec::new();
+        for line in lines {
+            if let Ok(l) = line {
+                if result_vec.len() != 3 {
+                    result_vec.push(l);
+                }
+                if result_vec.len() == 3 {
+                    for char in result_vec[0].chars() {
+                        if (result_vec[1].contains(char)) & (result_vec[2].contains(char)) {
+                            sum_of_priorities_p2 += get_priority(char);
+                            break;
+                        }
+                    }
+                    result_vec.clear();
+                }
+            }
+        }
+        println!("[Part 2] Sum of priorities: {}", sum_of_priorities_p2);
+    }
 }
