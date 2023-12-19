@@ -21,7 +21,7 @@ fn replace_substring_with_number(input: &str) -> String {
         let start_index = captures.start();
         let end_index = captures.end();
         let number = match_number(number_str).expect("Invalid number");
-        input_modified.replace_range(start_index..end_index, &*number.to_string());
+        input_modified.replace_range(start_index..start_index+1, &*number.to_string());
     }
     input_modified
 }
@@ -46,9 +46,8 @@ fn main() {
         let line_modified = replace_substring_with_number(line);
         let number_fw = extract_first_number(line_modified.clone()).expect("No number found");
 
-        let line_reverse = line_modified.clone().chars().rev().collect::<String>();
-        let number_rev = extract_first_number(line_reverse).expect("No number found");
-
+        let line_modified_rev = line_modified.chars().rev().collect::<String>();
+        let number_rev = extract_first_number(line_modified_rev).expect("No number found");
 
         let combined_number = format!("{}{}", number_fw, number_rev)
             .parse::<i32>()
