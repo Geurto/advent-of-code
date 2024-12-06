@@ -14,17 +14,13 @@ fn main() -> std::io::Result<()> {
             continue;
         }
 
+        let mut index_unsafe: i8 = -1;
         let direction =
             signum(numbers[0].parse::<i8>().unwrap() - numbers[1].parse::<i8>().unwrap());
 
-        let safety_level = check_safety(numbers.clone(), direction, 0);
-        //println!(
-        //    "Numbers: {:?} Safety level: {}",
-        //    numbers.clone(),
-        //    safety_level.clone()
-        //);
+        index_unsafe = check_safety(numbers.clone(), direction);
 
-        if safety_level <= 1 {
+        if index_unsafe == -1 {
             num_safe += 1;
         }
     }
@@ -33,34 +29,17 @@ fn main() -> std::io::Result<()> {
     Ok(())
 }
 
-fn check_safety(numbers: Vec<&str>, direction: i8, mut safety_level: u8) -> u8 {
-    if safety_level > 1 {
-        return safety_level;
-    }
-
+fn check_safety(numbers: Vec<&str>, direction: i8) -> i8 {
     for i in 0..numbers.len() - 1 {
         if !compare_number_safety(
             numbers[i].parse::<i8>().unwrap(),
             numbers[i + 1].parse::<i8>().unwrap(),
             direction,
         ) {
-            safety_level += 1;
-
-            if i == 0 {
-                //println!("Removing first number!");
-                let mut numbers_modified_first = numbers.clone();
-                numbers_modified_first.remove(i);
-                if check_safety(numbers_modified_first, direction, safety_level) == safety_level {
-                    return safety_level;
-                }
-            }
-            //println!("Removing number at index {}", i.clone());
-            let mut numbers_modified = numbers.clone();
-            numbers_modified.remove(i + 1);
-            return check_safety(numbers_modified, direction, safety_level);
+            return i as i8;
         }
     }
-    safety_level
+    -1
 }
 
 fn compare_number_safety(a: i8, b: i8, d: i8) -> bool {
