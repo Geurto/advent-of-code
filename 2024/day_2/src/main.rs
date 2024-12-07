@@ -20,6 +20,26 @@ fn main() -> std::io::Result<()> {
 
         index_unsafe = check_safety(numbers.clone(), direction);
 
+        if index_unsafe != -1 {
+            let mut numbers_modified_left = numbers.clone();
+            numbers_modified_left.remove(index_unsafe as usize);
+            index_unsafe = check_safety(numbers_modified_left.clone(), direction);
+            println!(
+                "Initial array: {:?} Index unsafe {} With left removed {:?}",
+                numbers, index_unsafe, numbers_modified_left
+            );
+        }
+
+        if (index_unsafe > -1) && (index_unsafe < (numbers.len() - 1) as i8) {
+            let mut numbers_modified_right = numbers.clone();
+            numbers_modified_right.remove((index_unsafe + 1) as usize);
+            index_unsafe = check_safety(numbers_modified_right.clone(), direction);
+            println!(
+                "Initial array: {:?} Index unsafe {} With right removed {:?}",
+                numbers, index_unsafe, numbers_modified_right
+            );
+        }
+
         if index_unsafe == -1 {
             num_safe += 1;
         }
@@ -36,7 +56,7 @@ fn check_safety(numbers: Vec<&str>, direction: i8) -> i8 {
             numbers[i + 1].parse::<i8>().unwrap(),
             direction,
         ) {
-            return i as i8;
+            return (i + 1) as i8;
         }
     }
     -1
