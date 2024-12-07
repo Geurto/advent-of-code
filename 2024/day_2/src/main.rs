@@ -6,75 +6,66 @@ fn main() -> std::io::Result<()> {
     let reader = BufReader::new(file);
 
     let mut num_safe: i16 = 0;
+    let mut num_safe_with_dampener: i16 = 0;
 
     for line in reader.lines() {
         let line = line?;
-        let numbers: Vec<&str> = line.split_whitespace().collect();
-        if numbers.len() == 0 {
-            continue;
-        }
+        let numbers: Vec<i32> = line
+            .split_whitespace()
+            .map(|s| s.parse().unwrap())
+            .collect();
 
-        let mut index_unsafe: i8 = -1;
-        let direction =
-            signum(numbers[0].parse::<i8>().unwrap() - numbers[1].parse::<i8>().unwrap());
-
-        index_unsafe = check_safety(numbers.clone(), direction);
-
-        if index_unsafe != -1 {
-            let mut numbers_modified_left = numbers.clone();
-            numbers_modified_left.remove(index_unsafe as usize);
-            index_unsafe = check_safety(numbers_modified_left.clone(), direction);
-            println!(
-                "Initial array: {:?} Index unsafe {} With left removed {:?}",
-                numbers, index_unsafe, numbers_modified_left
-            );
-        }
-
-        if (index_unsafe > -1) && (index_unsafe < (numbers.len() - 1) as i8) {
-            let mut numbers_modified_right = numbers.clone();
-            numbers_modified_right.remove((index_unsafe + 1) as usize);
-            index_unsafe = check_safety(numbers_modified_right.clone(), direction);
-            println!(
-                "Initial array: {:?} Index unsafe {} With right removed {:?}",
-                numbers, index_unsafe, numbers_modified_right
-            );
-        }
-
-        if index_unsafe == -1 {
+        if check_safety(numbers.clone()) {
             num_safe += 1;
+        }
+
+        if check_safety_with_dampener(numbers.clone()) {
+            num_safe_with_dampener += 1;
         }
     }
 
     println!("Number of safe sequences: {}", num_safe);
+    println!(
+        "Number of safe sequences with dampener: {}",
+        num_safe_with_dampener
+    );
     Ok(())
 }
 
-fn check_safety(numbers: Vec<&str>, direction: i8) -> i8 {
-    for i in 0..numbers.len() - 1 {
-        if !compare_number_safety(
-            numbers[i].parse::<i8>().unwrap(),
-            numbers[i + 1].parse::<i8>().unwrap(),
-            direction,
-        ) {
-            return (i + 1) as i8;
+fn check_safety(numbers: Vec<i32>) -> bool {
+    let safe_increasing = numbers.windows(2).all(is_safe_increasing);
+    let safe_decreasing = numbers.windows(2).all(is_safe_decreasing);
+
+    safe_increasing || safe_decreasing
+}
+
+fn check_safety_with_dampener(numbers: Vec<i32>) -> bool {
+    let mut safe_increasing: bool = false;
+    let mut safe_decreasing: bool = false;
+
+    for i in 0..numbers.len() {
+        let numbers_modified = numbers
+            .clone()
+            .into_iter()
+            .enumerate()
+            .filter(|(idx, _)| i != *idx)
+            .map(|(_, val)| val)
+            .collect::<Vec<i32>>();
+
+        safe_increasing = numbers_modified.windows(2).all(is_safe_increasing);
+        safe_decreasing = numbers_modified.windows(2).all(is_safe_decreasing);
+
+        if safe_increasing || safe_decreasing {
+            break;
         }
     }
-    -1
+    safe_increasing || safe_decreasing
 }
 
-fn compare_number_safety(a: i8, b: i8, d: i8) -> bool {
-    let diff = (a - b).abs();
-    let sign = signum(a - b);
-
-    (diff >= 1) && (diff <= 3) && (sign == d)
+fn is_safe_increasing(pair: &[i32]) -> bool {
+    pair[1] > pair[0] && (pair[1] - pair[0]) > 0 && (pair[1] - pair[0]) < 4
 }
 
-fn signum(a: i8) -> i8 {
-    if a < 0 {
-        -1
-    } else if a == 0 {
-        0
-    } else {
-        1
-    }
+fn is_safe_decreasing(pair: &[i32]) -> bool {
+    pair[0] > pair[1] && (pair[0] - pair[1]) > 0 && (pair[0] - pair[1]) < 4
 }
