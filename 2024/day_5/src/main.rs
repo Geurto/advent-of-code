@@ -40,7 +40,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut sum_of_middle_pages: u32 = 0;
     let mut sum_of_fixed_middle_pages: u32 = 0;
 
-    let file = File::open("data/dummy")?;
+    let file = File::open("data/input")?;
     let reader = BufReader::new(file);
 
     for line in reader.lines().map_while(Result::ok) {
@@ -51,7 +51,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let mut pages: Vec<u16> = line.split(',').map(|s| s.parse().unwrap()).collect();
             if let Some(middle_page) = handle_update(pages.clone(), &ordering_rules) {
                 sum_of_middle_pages += middle_page as u32;
-            } else if let Some(middle_page_fixed) = fix_pages(&mut pages, &mut ordering_rules) {
+            } else if let Some(middle_page_fixed) = fix_pages(&mut pages, &ordering_rules) {
                 sum_of_fixed_middle_pages += middle_page_fixed as u32;
             }
         }
@@ -80,14 +80,29 @@ fn handle_update(pages: Vec<u16>, ordering_rules: &Vec<Rule>) -> Option<u16> {
     pages.get(pages.len() / 2).copied()
 }
 
-fn fix_pages(pages: &mut [u16], ordering_rules: &mut Vec<Rule>) -> Option<u16> {
-    for rule in ordering_rules {
-        if let Some(false) = rule.check_update(pages) {
-            println!("Checking rule {:?} for page: {:?}", rule, pages);
-            rule.fix(pages);
-            println!("Fixed pages: {:?}", pages);
-            return pages.get(pages.len() / 2).copied();
+fn fix_pages(pages: &mut [u16], ordering_rules: &Vec<Rule>) -> Option<u16> {
+    if handle_update(pages.to_vec(), ordering_rules).is_some() {
+        return None;
+    }
+
+    loop {
+        let mut fixed = false;
+
+        for rule in ordering_rules {
+            if let Some(false) = rule.check_update(pages) {
+                rule.fix(pages);
+                fixed = true;
+            }
+        }
+
+        if let Some(middle_page) = handle_update(pages.to_vec(), ordering_rules) {
+            return Some(middle_page);
+        }
+
+        if !fixed {
+            break;
         }
     }
+
     None
 }
