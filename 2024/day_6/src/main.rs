@@ -2,6 +2,8 @@ use std::collections::HashSet;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 
+use rayon::prelude::*;
+
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 enum Direction {
     Up,
@@ -167,6 +169,7 @@ impl Cell {
     }
 }
 
+#[derive(Clone)]
 struct Map {
     width: usize,
     height: usize,
@@ -235,23 +238,26 @@ fn main() -> std::io::Result<()> {
     println!("Number of unique cells visited: {}", guard.path.len());
     //print(&map, &guard);
 
-    let mut num_loops: u16 = 0;
-    for (row, col) in guard.path.iter() {
-        map.reset();
-        let mut new_guard = Guard::new(initial_position, Direction::Up);
+    let num_loops: u16 = guard
+        .path
+        .par_iter()
+        .map(|(row, col)| {
+            let mut map_clone = map.clone();
+            let mut new_guard = Guard::new(initial_position, Direction::Up);
 
-        // add obstacle
-        map.add_obstacle(*row, *col);
+            // add obstacle
+            map_clone.add_obstacle(*row, *col);
 
-        // check for loop
-        while !new_guard.left_area {
-            new_guard.step(&mut map);
-            if new_guard.check_loop() {
-                num_loops += 1;
-                break;
+            // check for loop
+            while !new_guard.left_area {
+                new_guard.step(&mut map_clone);
+                if new_guard.check_loop() {
+                    return 1;
+                }
             }
-        }
-    }
+            0
+        })
+        .sum();
 
     println!(
         "Number of obstacle placements where guard gets into a loop: {}",
