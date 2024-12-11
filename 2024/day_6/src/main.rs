@@ -1,7 +1,8 @@
+use std::collections::HashSet;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 
-#[derive(Debug)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 enum Direction {
     Up,
     Right,
@@ -9,18 +10,72 @@ enum Direction {
     Left,
 }
 
-#[derive(Clone, Default)]
-struct Position {
-    x: i16,
-    y: i16,
+#[derive(Clone, PartialEq)]
+struct Guard {
+    direction: Direction,
+}
+
+impl Guard {
+    fn to_char(&self) -> char {
+        match self.direction {
+            Direction::Up => '^',
+            Direction::Right => '>',
+            Direction::Down => 'V',
+            Direction::Left => '<',
+        }
+    }
+}
+
+#[derive(Clone, Default, PartialEq)]
+struct Cell {
+    is_obstacle: bool,
+    guard: Option<Guard>,
+    directions_crossed: HashSet<Direction>,
+}
+
+impl Cell {
+    fn new(value: char) -> Self {
+        let is_obstacle: bool = value == '#';
+
+        Cell {
+            is_obstacle,
+            guard: None,
+            directions_crossed: HashSet::new(),
+        }
+    }
+
+    fn cross(&mut self, direction: Direction) {
+        self.directions_crossed.insert(direction);
+    }
+
+    fn get_char(&self) -> char {
+        if self.is_obstacle {
+            return '#';
+        }
+
+        if let Some(guard) = &self.guard {
+            return guard.to_char();
+        }
+
+        match (
+            self.directions_crossed.contains(&Direction::Left)
+                || self.directions_crossed.contains(&Direction::Right),
+            self.directions_crossed.contains(&Direction::Up)
+                || self.directions_crossed.contains(&Direction::Down),
+        ) {
+            (true, true) => '+',
+            (true, false) => '-',
+            (false, true) => '|',
+            (false, false) => '.',
+        }
+    }
 }
 
 struct Map {
     width: usize,
     height: usize,
-    cells: Vec<Vec<char>>,
-    visited_cells: Vec<bool>,
-    guard_position: Position,
+    cells: Vec<Vec<Cell>>,
+    guard_position: Option<(usize, usize)>,
     guard_direction: Direction,
     completed: bool,
 }
@@ -30,109 +85,93 @@ impl Map {
         let height = lines.len();
         let width = lines.get(0).map_or(0, |line| line.len());
 
-        let mut cells = vec![vec![' '; width]; height];
-        let mut visited_cells = vec![false; width * height];
-        let mut guard_position = Position::default();
+        let mut cells = vec![vec![Cell::default(); width]; height];
+        let mut guard_position = None;
         let mut guard_direction: Direction = Direction::Up;
 
         for (row, line) in lines.iter().enumerate() {
             for (col, ch) in line.chars().enumerate() {
-                cells[row][col] = ch;
+                let mut cell = Cell::new(ch);
                 if let Some(direction) = get_guard_direction(ch) {
-                    guard_position.x = col as i16;
-                    guard_position.y = row as i16;
+                    cell.guard = Some(Guard {
+                        direction: direction.clone(),
+                    });
+                    guard_position = Some((row, col));
                     guard_direction = direction;
                 }
+                cells[row][col] = cell;
             }
         }
-
-        visited_cells[guard_position.y as usize * width + guard_position.x as usize] = true;
 
         Map {
             width,
             height,
             cells,
-            visited_cells,
             guard_position,
             guard_direction,
             completed: false,
         }
     }
 
+    fn print(&self) {
+        for row in &self.cells {
+            let line: String = row.iter().map(|cell| cell.get_char()).collect();
+            println!("{}", line);
+        }
+    }
+
     fn move_guard(&mut self) {
         // up on map means lower in index
-        let mut new_position = self.guard_position.clone();
-        match self.guard_direction {
-            Direction::Up => {
-                new_position.y -= 1;
-            }
-            Direction::Right => {
-                new_position.x += 1;
-            }
-            Direction::Down => {
-                new_position.y += 1;
-            }
-            Direction::Left => {
-                new_position.x -= 1;
-            }
-        }
+        if let Some((row, col)) = self.guard_position {
+            let (new_row, new_col) = match self.guard_direction {
+                Direction::Up => (row.wrapping_sub(1), col),
+                Direction::Right => (row, col + 1),
+                Direction::Down => (row + 1, col),
+                Direction::Left => (row, col.wrapping_sub(1)),
+            };
 
-        // check bounds
-        if new_position.x < 0
-            || new_position.x >= self.width as i16
-            || new_position.y < 0
-            || new_position.y >= self.height as i16
-        {
-            self.completed = true;
-            return;
-        }
+            // check bounds
+            if new_col >= self.width || new_row >= self.height {
+                self.completed = true;
+                return;
+            }
 
-        // check for obstacle
-        if self.is_obstacle(new_position.clone()) {
-            self.change_direction();
-            return;
-        }
+            // check for obstacle
+            if self.cells[new_row][new_col].is_obstacle {
+                self.change_direction();
+                return;
+            }
 
-        self.guard_position = new_position;
-        self.visited_cells
-            [self.guard_position.y as usize * self.width + self.guard_position.x as usize] = true;
+            self.cells[row][col].guard = None;
+            self.cells[new_row][new_col].guard = Some(Guard {
+                direction: self.guard_direction.clone(),
+            });
+            self.cells[new_row][new_col].cross(self.guard_direction.clone());
+
+            self.guard_position = Some((new_row, new_col));
+        }
     }
 
     fn change_direction(&mut self) {
-        match self.guard_direction {
-            Direction::Up => {
-                self.guard_direction = Direction::Right;
-            }
-            Direction::Right => {
-                self.guard_direction = Direction::Down;
-            }
-            Direction::Down => {
-                self.guard_direction = Direction::Left;
-            }
-            Direction::Left => {
-                self.guard_direction = Direction::Up;
-            }
+        self.guard_direction = match self.guard_direction {
+            Direction::Up => Direction::Right,
+            Direction::Right => Direction::Down,
+            Direction::Down => Direction::Left,
+            Direction::Left => Direction::Up,
         }
-        println!("Changed direction to {:?}", self.guard_direction);
     }
 
-    fn is_obstacle(&self, position: Position) -> bool {
-        self.cells[position.y as usize][position.x as usize] == '#'
-    }
-
-    fn get_total_visited_cells(&self) -> u16 {
-        self.visited_cells
+    fn get_total_visited_cells(&self) -> usize {
+        self.cells
             .iter()
-            .map(|b| match b {
-                false => 0,
-                true => 1,
-            })
-            .sum::<u16>()
+            .flat_map(|row| row.iter())
+            .filter(|cell| !cell.directions_crossed.is_empty())
+            .count()
     }
 }
 
 fn main() -> std::io::Result<()> {
-    let file = File::open("data/input")?;
+    let file = File::open("data/dummy")?;
     let reader = BufReader::new(file);
 
     let lines: Vec<String> = reader.lines().collect::<Result<_, _>>()?;
@@ -146,6 +185,8 @@ fn main() -> std::io::Result<()> {
         "Number of unique cells visited: {}",
         map.get_total_visited_cells()
     );
+
+    map.print();
 
     Ok(())
 }
