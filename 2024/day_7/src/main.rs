@@ -26,27 +26,30 @@ fn main() -> std::io::Result<()> {
 
 fn subdivide(equation: (usize, &[usize])) -> bool {
     let (result, factors) = equation;
-
-    if factors.is_empty() {
-        return false;
-    } else if factors.len() == 1 {
+    if factors.len() == 1 {
         return result == factors[0];
     }
 
     let k = factors[factors.len() - 1];
-
-    if result == k {
-        return true;
-    }
-
-    if result < k {
-        return false;
-    }
+    let remaining = &factors[..factors.len() - 1];
 
     // if k is a factor, then continue to subdivide
     if result % k == 0 {
-        return subdivide((result / k, &factors[..factors.len() - 1]));
+        let solved_by_division = subdivide((result / k, remaining));
+        if solved_by_division {
+            return true;
+        }
+        if !solved_by_division && k > result {
+            return false;
+        }
+        // see if we can solve by subtracting at this step instead
+        return subdivide((result - k, remaining));
     }
 
-    subdivide((result - k, &factors[..factors.len() - 1]))
+    // else, subtract k and go one deeper
+    if result >= k {
+        return subdivide((result - k, remaining));
+    }
+
+    false
 }
