@@ -1,7 +1,7 @@
+use anyhow::{Context, Result};
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::{self, BufRead, BufReader};
-use anyhow::{Context, Result};
 
 #[derive(Debug)]
 struct CityGrid {
@@ -9,6 +9,7 @@ struct CityGrid {
     height: usize,
     antennas: HashMap<char, Vec<Position>>,
     antinodes: HashSet<Position>,
+    harmonic_antinodes: HashSet<Position>,
 }
 
 #[derive(Debug, Clone, Copy, Hash, Eq, PartialEq)]
@@ -27,6 +28,7 @@ impl CityGrid {
             height,
             antennas: HashMap::new(),
             antinodes: HashSet::new(),
+            harmonic_antinodes: HashSet::new(),
         };
 
         // Parse input and populate antennas
@@ -43,9 +45,7 @@ impl CityGrid {
     }
 
     fn add_antenna(&mut self, antenna_type: char, pos: Position) {
-        self.antennas.entry(antenna_type)
-            .or_default()
-            .push(pos);
+        self.antennas.entry(antenna_type).or_default().push(pos);
     }
 
     fn calculate_all_antinodes(&mut self) {
@@ -54,7 +54,13 @@ impl CityGrid {
                 for &pos2 in positions {
                     if pos1 != pos2 {
                         if let Some(new_antinodes) = self.calculate_antinodes(pos1, pos2) {
-                            self.antinodes.extend(new_antinodes);
+                            self.antinodes.extend(new_antinodes.clone());
+                            self.harmonic_antinodes.extend(new_antinodes);
+                        }
+                        if let Some(new_harmonic_antinodes) =
+                            self.calculate_harmonic_antinodes(pos1, pos2)
+                        {
+                            self.harmonic_antinodes.extend(new_harmonic_antinodes);
                         }
                     }
                 }
@@ -74,8 +80,8 @@ impl CityGrid {
 
         // Calculate potential antinodes
         let candidates = [
-            (row_a as i32 - d_row, col_a as i32 - d_col),  // a - d
-            (row_b as i32 + d_row, col_b as i32 + d_col),  // b + d
+            (row_a as i32 - d_row, col_a as i32 - d_col), // a - d
+            (row_b as i32 + d_row, col_b as i32 + d_col), // b + d
         ];
 
         // Filter valid positions
@@ -83,6 +89,39 @@ impl CityGrid {
             if self.is_in_bounds(row, col) {
                 result.push(Position(row as usize, col as usize));
             }
+        }
+
+        if result.is_empty() {
+            None
+        } else {
+            Some(result)
+        }
+    }
+
+    fn calculate_harmonic_antinodes(&self, a: Position, b: Position) -> Option<Vec<Position>> {
+        let Position(row_a, col_a) = a;
+        let Position(row_b, col_b) = b;
+
+        // Calculate vector from a to b
+        let d_row = row_b as i32 - row_a as i32;
+        let d_col = col_b as i32 - col_a as i32;
+
+        let mut result = Vec::new();
+        let mut candidate_forwards = (row_a as i32 + d_row, col_a as i32 + d_col);
+        while self.is_in_bounds(candidate_forwards.0, candidate_forwards.1) {
+            result.push(Position(
+                candidate_forwards.0 as usize,
+                candidate_forwards.1 as usize,
+            ));
+            candidate_forwards = (candidate_forwards.0 + d_row, candidate_forwards.1 + d_col);
+        }
+        let mut candidate_backwards = (row_a as i32 - d_row, col_a as i32 - d_col);
+        while self.is_in_bounds(candidate_backwards.0, candidate_backwards.1) {
+            result.push(Position(
+                candidate_backwards.0 as usize,
+                candidate_backwards.1 as usize,
+            ));
+            candidate_backwards = (candidate_backwards.0 - d_row, candidate_backwards.1 - d_col);
         }
 
         if result.is_empty() {
@@ -104,5 +143,9 @@ fn main() -> Result<()> {
 
     let city_grid = CityGrid::new("data/input")?;
     println!("City map has {} antinodes", city_grid.antinodes.len());
+    println!(
+        "Including resonant harmonics, there are {} antinodes",
+        city_grid.harmonic_antinodes.len()
+    );
     Ok(())
 }
