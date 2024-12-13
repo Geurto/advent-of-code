@@ -1,87 +1,117 @@
-use std::{fs, usize};
+use std::{fmt, fs, usize};
 
 use env_logger::Builder;
 use log::{debug, error, info};
 
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum DiskContent {
+    File { id: usize },
+    FreeSpace,
+}
+
+impl DiskContent {
+    fn to_digit(&self) -> usize {
+        match self {
+            DiskContent::File { id } => *id,
+            DiskContent::FreeSpace => 0,
+        }
+    }
+}
+
+impl fmt::Display for DiskContent {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            DiskContent::File { id } => write!(f, "{}", id),
+            DiskContent::FreeSpace => write!(f, "."),
+        }
+    }
+}
+
 #[derive(Debug)]
 struct DiskMap {
-    disk_layout: Vec<char>,
+    disk_layout: Vec<DiskContent>,
 }
 
 impl DiskMap {
-    const FILE_IDS: &'static str = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
-
     fn new(contents: &str) -> Self {
-        let mut disk_str: String = "".to_string();
+        let mut disk_layout = Vec::new();
         let mut is_file = true;
         let mut file_id = 0;
         for char in contents.chars() {
-            if is_file {
-                match char.to_digit(10) {
-                    Some(k) => {
-                        let id = Self::FILE_IDS.chars().nth(file_id).unwrap();
-                        disk_str.push_str(&id.to_string().repeat(k as usize));
+            match char.to_digit(10) {
+                Some(count) => {
+                    let count = count as usize;
+                    if is_file {
+                        disk_layout.extend(
+                            std::iter::repeat(DiskContent::File { id: file_id }).take(count),
+                        );
                         file_id += 1;
+                    } else {
+                        disk_layout.extend(std::iter::repeat(DiskContent::FreeSpace).take(count));
                     }
-                    None => error!("Invalid character in file: {}", char),
+                    is_file = !is_file;
                 }
-            } else {
-                match char.to_digit(10) {
-                    Some(k) => {
-                        disk_str.push_str(&".".repeat(k as usize));
-                    }
-                    None => error!("Invalid character in free space: {}", char),
+                None => {
+                    error!("Invalid character: {}", char);
                 }
             }
-            is_file = !is_file;
         }
 
-        debug!("Disk layout:\n{}", disk_str);
-        let disk_layout: Vec<char> = disk_str.chars().collect();
         DiskMap { disk_layout }
     }
 
-    fn get_first_free_space(&self) -> Option<usize> {
-        self.disk_layout.iter().position(|&c| c == '.')
-    }
-
-    fn get_last_file(&self) -> Option<usize> {
-        self.disk_layout.iter().rposition(|&c| c != '.')
-    }
-
-    fn move_file_to_free_space(&mut self, file_index: usize, free_space_index: usize) {
-        self.disk_layout.swap(file_index, free_space_index);
+    fn print_layout(&self) -> String {
+        self.disk_layout
+            .iter()
+            .map(|content| format!("| {} ", content))
+            .collect::<String>()
+            + "|"
     }
 
     fn defrag(&mut self) {
-        info!(
-            "Initial disk layout:\n{}",
-            self.disk_layout.iter().collect::<String>()
-        );
+        let mut free_index = 0;
+        let mut file_index = self.disk_layout.len().saturating_sub(1);
 
-        while let Some(free_space_index) = self.get_first_free_space() {
-            if let Some(last_file_index) = self.get_last_file() {
-                if last_file_index < free_space_index {
-                    break;
-                }
-                self.move_file_to_free_space(last_file_index, free_space_index);
-            } else {
-                break;
-            };
+        while free_index < self.disk_layout.len()
+            && self.disk_layout[free_index] != DiskContent::FreeSpace
+        {
+            free_index += 1;
+        }
+        while file_index > free_index && self.disk_layout[file_index] == DiskContent::FreeSpace {
+            file_index = file_index.saturating_sub(1);
         }
 
-        info!(
-            "Final disk layout:\n{}",
-            self.disk_layout.iter().collect::<String>()
-        );
+        while free_index < file_index {
+            self.disk_layout.swap(free_index, file_index);
+
+            free_index += 1;
+            while free_index < self.disk_layout.len()
+                && self.disk_layout[free_index] != DiskContent::FreeSpace
+            {
+                free_index += 1;
+            }
+
+            if file_index == 0 {
+                break;
+            }
+
+            file_index -= 1;
+            while file_index > free_index && self.disk_layout[file_index] == DiskContent::FreeSpace
+            {
+                if file_index == 0 {
+                    break;
+                }
+                file_index -= 1;
+            }
+        }
     }
 
     fn calculate_checksum(&self) -> usize {
         self.disk_layout
             .iter()
             .enumerate()
-            .map(|(i, &c)| {
-                let f = c.to_digit(10).unwrap_or(0) as usize;
+            .map(|(i, c)| {
+                let f = c.to_digit();
                 debug!("{}, {} : {}", i, f, i * f);
                 i * f
             })
@@ -91,11 +121,13 @@ impl DiskMap {
 
 fn main() -> std::io::Result<()> {
     Builder::new().filter_level(log::LevelFilter::Info).init();
-    let contents = fs::read_to_string("data/input")?;
+    let contents = fs::read_to_string("data/input")?.trim().to_string();
     debug!("Loaded content:\n{}", contents);
 
     let mut disk_map = DiskMap::new(&contents);
+    debug!("Initial layout:\n{}", disk_map.print_layout());
     disk_map.defrag();
+    debug!("Defragged layout:\n{}", disk_map.print_layout());
     info!("Checksum: {}", disk_map.calculate_checksum());
 
     Ok(())
