@@ -34,6 +34,7 @@ struct TopographicMap {
     height: usize,
     trailheads: Vec<((usize, usize), usize)>,
     reachable_peaks: HashSet<(usize, usize)>,
+    skip_visited: bool,
 }
 
 impl TopographicMap {
@@ -62,6 +63,7 @@ impl TopographicMap {
             height,
             trailheads,
             reachable_peaks,
+            skip_visited: true,
         }
     }
 
@@ -71,9 +73,11 @@ impl TopographicMap {
                 cell.reset();
             }
         }
+        self.reachable_peaks.clear();
     }
 
     fn explore_all(&mut self) {
+        self.reset();
         let trailheads = std::mem::take(&mut self.trailheads);
         let mut total_score = 0;
         for ((x, y), mut score) in trailheads {
@@ -125,10 +129,10 @@ impl TopographicMap {
             }
 
             let next_cell = self.cells[new_y as usize][new_x as usize];
-            if next_cell.height != current_height + 1 {
+            if next_cell.visited && self.skip_visited {
                 continue;
             }
-            if next_cell.visited {
+            if next_cell.height != current_height + 1 {
                 continue;
             }
             viable_neighbours.push((new_x as usize, new_y as usize));
@@ -144,5 +148,13 @@ fn main() {
     info!("\n---- MAP ----\n{}", DATA);
     debug!("Trailheads: {:?}", map.trailheads);
 
+    // Part 1
+    info!("Part 1: calculating trailhead score");
     map.explore_all();
+
+    // Part 2
+    info!("Part 2: calculating trailhead rating");
+    let mut map_rating = TopographicMap::new(DATA);
+    map_rating.skip_visited = false;
+    map_rating.explore_all();
 }
