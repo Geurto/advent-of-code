@@ -48,7 +48,26 @@ impl Garden {
 
     fn survey(&mut self) {}
 
-    fn get_number_of_same_neighbours(&self, x: usize, y: usize) -> usize {}
+    fn get_number_of_same_neighbours(&self, x: usize, y: usize) -> usize {
+        let plant_type = &self.layout[y][x];
+
+        let directions = vec![(0, -1), (0, 1), (-1, 0), (1, 0)];
+
+        let mut count = 0;
+        for (dx, dy) in directions {
+            let nx = x as i32 + dx;
+            let ny = y as i32 + dy;
+            if nx >= 0
+                && nx < self.width as i32
+                && ny >= 0
+                && ny < self.height as i32
+                && self.layout[ny as usize][nx as usize] == *plant_type
+            {
+                count += 1;
+            }
+        }
+        count
+    }
 }
 
 struct GardenPlot {
