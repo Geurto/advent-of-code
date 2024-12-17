@@ -112,6 +112,12 @@ impl Garden {
             .fold(0, |acc, (_, cost)| acc + cost);
         info!("Total costs: {}", total_costs);
     }
+
+    fn calculate_bulk_discount(&mut self) {
+        for plot in &mut self.plots {
+            plot.count_corners();
+        }
+    }
 }
 
 struct GardenPlot {
@@ -134,6 +140,14 @@ impl GardenPlot {
     fn add_plant(&mut self, x: usize, y: usize) {
         self.plants.push((x, y));
     }
+
+    fn count_corners(&mut self) {
+        let mut corners = 0;
+        let directions = [(0, 1), (1, 0), (0, -1), (-1, 0)];
+        self.plants.sort();
+
+        if let Some((start_x, start_y)) = self.plants.first() {}
+    }
 }
 
 fn main() {
@@ -148,4 +162,5 @@ fn main() {
     let mut garden = Garden::new(&contents);
     garden.survey();
     garden.calculate_costs();
+    garden.calculate_bulk_discount();
 }
